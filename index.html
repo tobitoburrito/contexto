@@ -788,6 +788,16 @@ body.kb.bz #bzstreak{ display:none; }
 .nsbar{ display:block; height:6px; border-radius:99px; background:var(--line); margin-top:6px; overflow:hidden; }
 .nsbar i{ display:block; height:100%; background:var(--jade); }
 
+.belt{ display:inline-flex; align-items:center; gap:6px; font-weight:800; font-size:14px; padding:3px 10px 3px 6px; border:2px solid var(--edge); border-radius:99px; background:var(--card); }
+.belt i{ display:inline-block; width:26px; height:10px; border-radius:3px; background:var(--bb); border:1.5px solid var(--edge); }
+.belt.big{ font-size:17px; padding:6px 14px 6px 8px; } .belt.big i{ width:38px; height:14px; }
+.belt.pop{ animation:pop .5s ease-out; }
+.dtpass{ margin:0 0 8px; font-size:14px; color:var(--muted); text-align:center; } .dtpass b{ color:var(--ink); }
+.dtsteps{ display:flex; align-items:center; gap:6px; margin-top:6px; }
+.dtsteps i{ flex:1; height:14px; border-radius:4px; border:2px solid var(--edge); background:var(--card); }
+.dtsteps i.on{ background:var(--bb); }
+.dtsteps span{ font-size:12px; font-weight:800; padding:2px 8px; border-radius:6px; border:2px solid var(--edge); background:var(--bb); color:var(--bf); white-space:nowrap; }
+
 .syncbox{ background:var(--card); border:2px solid var(--edge); border-radius:16px; padding:12px 14px; margin-top:4px; }
 .syncbox strong{ font-family:var(--head); font-size:16px; }
 .ghin{ display:block; width:100%; font:inherit; font-size:16px; padding:10px 12px; margin:4px 0 10px; border:2px solid var(--edge); border-radius:10px; background:var(--soft); color:var(--ink); }
@@ -1541,12 +1551,13 @@ $("#tab-k").onclick=()=>{ SK=null; view={name:"sorgen"}; render(); };
 $("#tab-b").onclick=()=>{ if(BZ){ cancelAnimationFrame(BZ.timer); BZ=null; } view={name:"blitz"}; render(); };
 function render(){
   if(typeof speechSynthesis!=="undefined") try{ speechSynthesis.cancel(); }catch(e){}
-  ({home:renderHome,practice:renderPractice,words:renderWords,tough:renderTough,toughs:renderToughs,cloze:renderCloze,xword:renderXword,clozes:renderClozeList,xwords:renderXwList,sorgen:renderSorgen,blitz:renderBlitz,mem:renderMem,zu:renderZu,neu:renderNeu,ns:renderNs,chats:renderChats,chat:renderChat,progress:renderProgress}[view.name])();
+  ({home:renderHome,practice:renderPractice,words:renderWords,tough:renderTough,toughs:renderToughs,cloze:renderCloze,xword:renderXword,clozes:renderClozeList,xwords:renderXwList,sorgen:renderSorgen,blitz:renderBlitz,mem:renderMem,zu:renderZu,dt:renderDt,neu:renderNeu,ns:renderNs,chats:renderChats,chat:renderChat,progress:renderProgress}[view.name])();
   if(view.name!=="practice"&&view.name!=="ns") document.body.classList.remove("pr");
   if(view.name!=="xword") document.body.classList.remove("xw");
   if(view.name!=="cloze") document.body.classList.remove("czopen","czv");
   if(!(view.name==="tough"&&T&&T.phase===0)&&!(view.name==="sorgen"&&SK&&SK.playing)) document.body.classList.remove("ts");
-  if(view.name!=="blitz"&&view.name!=="zu"){ document.body.classList.remove("bz"); if(BZ){ cancelAnimationFrame(BZ.timer); BZ=null; } }
+  if(view.name!=="dt"&&DT){ cancelAnimationFrame(DT.timer); DT=null; }
+  if(view.name!=="blitz"&&view.name!=="zu"&&view.name!=="dt"){ document.body.classList.remove("bz"); if(BZ){ cancelAnimationFrame(BZ.timer); BZ=null; } }
   if(view.name!=="zu"&&ZU){ cancelAnimationFrame(ZU.timer); ZU=null; }
   if(view.name!=="mem") MEM=null;
   window.scrollTo({top:0});
@@ -2388,6 +2399,7 @@ function xwFinish(){
   $("#xwhome").onclick=()=>{ const sk=XW.pi==="sk"; XW=null; view={name:sk?"sorgen":"home"}; render(); };
   end.scrollIntoView({behavior:"smooth",block:"center"});
 }
+document.addEventListener("keydown",e=>{ if(e.key==="Enter"&&view.name==="dt"&&DT&&DT.waiting&&document.activeElement!==$("#dtin")){ e.preventDefault(); dtNext(); } });
 document.addEventListener("keydown",e=>{
   if(view.name!=="xword"||!XW||e.ctrlKey||e.metaKey||e.altKey) return;
   if(e.key==="Backspace"){ e.preventDefault(); xwDel(); }
@@ -2544,17 +2556,17 @@ function renderSorgen(){
     <div class="skmodes">
       <button class="skmode" id="skgo"><strong>Buchstabensalat</strong><span>Bis zu 10 Sorgenkinder – zuerst die, die hier noch selten dran waren.</span></button>
       <button class="skmode" id="skxw" ${xn>=2?"":"disabled"}><strong>Rätsel</strong><span>${xn>=2?"Kreuzworträtsel aus den Sorgenkindern, die du am häufigsten falsch hattest.":"Dafür braucht es mindestens zwei passende Sorgenkinder."}</span></button>
-      <button class="skmode" id="skbz"><strong>Dojo-Turbo</strong><span>Wie Turbo, nur mit deinen Sorgenkindern. ${BZ_LIVES} Leben, Multiplikator für Serien.</span></button>
+      <button class="skmode" id="skbz"><strong>Dojo-Turbo</strong><span>Endlos, die schwersten Wörter zuerst. Richtig = eine Stufe hoch, falsch = eine runter. Hol dir den nächsten Gürtel!</span></button>
       <button class="skmode" id="skmem" ${ids.length>=3?"":"disabled"}><strong>Memory</strong><span>${ids.length>=3?"Finde die Paare: spanisches Wort und deutsche Bedeutung.":"Dafür braucht es mindestens drei Sorgenkinder."}</span></button>
       <button class="skmode" id="skzu" ${ids.length>=3?"":"disabled"}><strong>Zuordnen</strong><span>${ids.length>=3?`Spanisch links, Deutsch rechts – gefundene Paare werden sofort ersetzt. ${ZU_LIVES} Leben, Multiplikator.`:"Dafür braucht es mindestens drei Sorgenkinder."}</span></button>
     </div>`
   :`<p class="empty">Gerade gibt es keine Sorgenkinder – sehr gut! Wörter, die du ${TOUGH_MIN}-mal falsch hattest, landen automatisch hier.</p>`}
   <div class="stats" style="margin-top:14px"><div class="stat"><b>${st.rounds||0}</b><span>Salat-Runden</span></div><div class="stat"><b>${st.xw||0}</b><span>Rätsel ohne Tipp</span></div><div class="stat"><b>${st.clean||0}</b><span>Wörter entwirrt</span></div></div>
-  <div class="stats"><div class="stat"><b>${bzStats("sk").best||0}</b><span>Rekord Dojo-Turbo</span></div><div class="stat"><b>${memStats().best!=null?memStats().best:"–"}</b><span>Memory: wenigste Fehlversuche</span></div><div class="stat"><b>${zuStats().best||0}</b><span>Rekord Zuordnen</span></div></div>
+  <div class="stats"><div class="stat"><b>${dtStats().top||0}</b><span>Dojo-Turbo: höchste Stufe</span></div><div class="stat"><b>${memStats().best!=null?memStats().best:"–"}</b><span>Memory: wenigste Fehlversuche</span></div><div class="stat"><b>${zuStats().best||0}</b><span>Rekord Zuordnen</span></div></div>
   ${L?L.html:""}`;
   if($("#skgo")) $("#skgo").onclick=skStart;
   if($("#skxw")) $("#skxw").onclick=()=>startXword("sk",true);
-  if($("#skbz")) $("#skbz").onclick=()=>bzStart("sk");
+  if($("#skbz")) $("#skbz").onclick=dtStart;
   if($("#skmem")) $("#skmem").onclick=memStart;
   if($("#skzu")) $("#skzu").onclick=zuStart;
   if(L) wireToughList(L.list);
@@ -2754,6 +2766,125 @@ function bzOver(quit){
     ${streakBarHTML(run,st.bestStreak,"Deine Serie in dieser Runde")}
     <div class="row" style="justify-content:center"><button class="btn gold" id="bzagain">Nochmal</button><button class="btn ghost" id="bzback">Übersicht</button></div></div>`;
   $("#bzagain").onclick=()=>bzStart(mode); $("#bzback").onclick=()=>{ view={name:mode==="sk"?"sorgen":"blitz"}; render(); };
+}
+
+/* ---------- Dojo-Turbo: endlos, meiste Fehler zuerst; richtig = Stufe hoch, falsch/Zeit um = Stufe runter; Gürtel alle 5 Stufen ---------- */
+const DT_SEC=20;
+const BELTS=[["Weiß","#FFFFFF","#1B1035"],["Gelb","#F5C400","#2A1E00"],["Orange","#F08A24","#2A1400"],["Grün","#2E9E5B","#FFFFFF"],["Blau","#2D6CDF","#FFFFFF"],["Braun","#8B5A2B","#FFFFFF"],["Schwarz","#1B1035","#FFFFFF"]];
+function beltOf(stage){ const i=Math.floor(stage/5); const b=BELTS[Math.min(i,6)]; const NM=["Weißer Gürtel","Gelber Gürtel","Oranger Gürtel","Grüner Gürtel","Blauer Gürtel","Brauner Gürtel","Schwarzer Gürtel"]; return {i,name:i<=6?NM[i]:`Schwarzer Gürtel · ${i-6}. Dan`,short:i<=6?b[0]:`${i-6}. Dan`,bg:b[1],fg:b[2]}; }
+function beltHTML(stage,big){ const b=beltOf(stage); return `<span class="belt ${big?"big":""}" style="--bb:${b.bg};--bf:${b.fg}"><i></i>${esc(b.name)}</span>`; }
+let DT=null;
+function dtStats(){ return state.dt||(state.dt={top:0,runs:0,lastOk:[]}); }
+function dtStart(){
+  const pool=toughIds(); if(!pool.length) return; ac();
+  const last=new Set(dtStats().lastOk||[]), j={}; pool.forEach(id=>j[id]=Math.random());
+  const queue=pool.slice().sort((a,b)=>(last.has(a)?1:0)-(last.has(b)?1:0)||errOf(b)-errOf(a)||j[a]-j[b]);
+  DT={queue,n:pool.length,pass:1,passDone:new Set(),stage:0,peak:0,right:0,wrong:0,miss:{},ok:new Set(),answered:false,left:DT_SEC*1000,timer:0,over:false,rec:dtStats().top||0};
+  view={name:"dt"}; render();
+}
+function renderDt(){
+  setTab("k");
+  if(!DT){ view={name:"sorgen"}; return renderSorgen(); }
+  document.body.classList.add("bz");
+  if(!$("#dtin")){
+    $("#app").innerHTML=`<div class="pbar"><button class="icon-btn" id="dtquit" aria-label="Runde beenden">✕</button><span id="dtbelt"></span><span class="bzscore">Stufe <b id="dtst">0</b></span></div>
+      <div class="bztime"><i id="dttime"></i><span id="dtsec"></span></div>
+      <p class="dtpass" id="dtpass"></p>
+      <article class="card bzcard">
+        <p class="sentence" lang="es" id="dtsent"></p>
+        <p class="trans" id="dttrans"></p>
+        <div class="inrow bzin"><input id="dtin" type="text" lang="es" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" placeholder="Fehlendes Wort eintippen" aria-label="Fehlendes Wort"><button class="btn" id="dtok">OK</button></div>
+        <p class="bzfb" id="dtfb"></p>
+      </article>
+      <div id="dtladder"></div>`;
+    $("#dtquit").onclick=()=>dtOver();
+    $("#dtok").onclick=()=>dtCheck();
+    $("#dtin").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); if(DT&&DT.waiting) dtNext(); else dtCheck(); } });
+  }
+  dtHud();
+  const v=BY[DT.queue[0]], P=parts(v.s);
+  $("#dtsent").innerHTML=`${esc(P.pre)}<span class="gap" id="dtgap" style="min-width:${Math.max(4,P.gap.length*0.9)}ch"><span>${esc(P.gap)}</span></span>${esc(P.post)}`;
+  $("#dttrans").textContent=v.t; $("#dtfb").innerHTML="";
+  const inp=$("#dtin"); inp.value=""; inp.readOnly=false; inp.classList.remove("ok","no"); $("#dtok").disabled=false; $("#dtok").textContent="OK";
+  $("#dtok").onclick=()=>dtCheck(); inp.oninput=null;
+  inp.focus({preventScroll:true});
+  DT.answered=false; DT.waiting=false; DT.left=DT_SEC*1000; dtRun();
+}
+function dtNext(){ if(!DT||DT.over||!DT.waiting) return; DT.waiting=false; renderDt(); }
+function dtHud(){
+  $("#dtbelt").innerHTML=beltHTML(DT.stage); $("#dtst").textContent=DT.stage;
+  $("#dtpass").innerHTML=`${DT.pass}. Durchgang · <b>${DT.passDone.size}</b> von ${DT.n} Sorgenkindern geschafft`;
+  const within=DT.stage%5;
+  $("#dtladder").innerHTML=`<div class="bzstreak"><div class="bzst-top"><span>Bis zum nächsten Gürtel</span><span>Rekord: Stufe <b>${Math.max(DT.rec,DT.peak)}</b></span></div>
+    <div class="dtsteps">${[0,1,2,3,4].map(k=>`<i class="${k<within?"on":""}" style="--bb:${beltOf(DT.stage+5-within).bg}"></i>`).join("")}<span style="--bb:${beltOf(DT.stage+5-within).bg};--bf:${beltOf(DT.stage+5-within).fg}">${esc(beltOf(DT.stage+5-within).short)}</span></div></div>`;
+}
+function dtRun(){
+  cancelAnimationFrame(DT.timer); let last=performance.now();
+  const tick=t=>{ if(!DT||DT.over||DT.answered||view.name!=="dt") return;
+    const dt=t-last; last=t; if(!document.hidden) DT.left-=dt;
+    const el=$("#dttime"), s=$("#dtsec"); if(!el) return;
+    const f=Math.max(0,DT.left/(DT_SEC*1000)); el.style.width=(f*100)+"%"; el.classList.toggle("low",f<0.25); s.textContent=Math.max(0,Math.ceil(DT.left/1000));
+    if(DT.left<=0){ dtAnswer(false,$("#dtin").value,true); return; }
+    DT.timer=requestAnimationFrame(tick); };
+  DT.timer=requestAnimationFrame(tick);
+}
+function dtCheck(){
+  if(!DT||DT.answered) return;
+  const raw=$("#dtin").value; if(!raw.trim()){ $("#dtin").focus(); return; }
+  const v=BY[DT.queue[0]], P=parts(v.s), a=norm(raw), g=norm(P.gap);
+  const alts=v.es.split(" / ").map(x=>norm(stripArt(x)));
+  let acc=[g]; if(alts.includes(norm(stripArt(P.gap)))) acc=acc.concat(alts);
+  if(acc.includes(a)||acc.includes(norm(stripArt(a)))) return dtAnswer(true,raw,false,false);
+  if(acc.map(deacc).includes(deacc(a))) return dtAnswer(true,raw,false,true);
+  dtAnswer(false,raw,false,false);
+}
+function dtAnswer(ok,raw,timeout,accent){
+  if(DT.answered) return; DT.answered=true; cancelAnimationFrame(DT.timer);
+  const id=DT.queue.shift(), v=BY[id], P=parts(v.s), gap=$("#dtgap"), inp=$("#dtin");
+  inp.readOnly=true; $("#dtok").disabled=true;
+  if(ok){
+    DT.right++; DT.ok.add(id); DT.queue.push(id);                       /* richtig: ganz ans Ende */
+    DT.passDone.add(id); let passMsg="";
+    if(DT.passDone.size>=DT.n){ passMsg=`<br><span style="color:var(--jade);font-weight:800">${DT.pass}. Durchgang geschafft – weiter mit dem ${DT.pass+1}. Durchgang!</span>`; DT.pass++; DT.passDone=new Set(); }
+    const before=beltOf(DT.stage).i; DT.stage++; const newBelt=beltOf(DT.stage).i>before&&DT.stage>DT.peak;
+    DT.peak=Math.max(DT.peak,DT.stage);
+    gap.classList.add("filled"); inp.classList.add("ok");
+    let msg=accent?`Richtig – achte noch auf die Akzente: <b lang="es">${esc(P.gap)}</b>`:"¡Correcto! Eine Stufe hoch.";
+    if(newBelt){ msg=`<span style="color:var(--jade)">Neuer Gürtel: ${esc(beltOf(DT.stage).name)}!</span>`; sfx("win"); } else sfx("good");
+    if(DT.stage>DT.rec&&DT.rec>0&&!DT.recShown){ DT.recShown=true; msg+=` · <span style="color:var(--jade)">Neuer Rekord!</span>`; }
+    $("#dtfb").innerHTML=msg+passMsg; if(passMsg&&!newBelt) sfx("win"); dtHud(); if(newBelt){ const b=document.querySelector("#dtbelt .belt"); if(b) b.classList.add("pop"); }
+    setTimeout(()=>{ if(DT&&!DT.over) renderDt(); },passMsg?2200:(newBelt?1500:(accent?1400:700)));
+  } else {
+    DT.wrong++; DT.miss[id]=(DT.miss[id]||0)+1; DT.queue.splice(Math.min(3,DT.queue.length),0,id);   /* falsch: kommt drei Wörter später wieder */
+    DT.stage=Math.max(0,DT.stage-1); sfx("bad");
+    gap.classList.add("miss"); inp.classList.add("no");
+    const d=raw&&raw.trim()?diffHTML(raw.trim(),P.gap):null;
+    $("#dtfb").innerHTML=`${timeout?"Zeit abgelaufen – ":""}${d?`Deine Antwort: <span lang="es">${d.typed}</span> → `:""}richtig: <b lang="es">${d?d.correct:esc(P.gap)}</b> <span class="muted">(${esc(v.es)} = ${esc(v.de)})</span><br><span class="muted">Eine Stufe zurück. Weiter mit Enter.</span>`;
+    dtHud();
+    /* falsch: kein automatisches Weiter – Enter oder „Weiter“ */
+    DT.waiting=true; inp.readOnly=false; inp.value=raw||""; const okb=$("#dtok"); okb.disabled=false; okb.textContent="Weiter"; okb.onclick=dtNext;
+    inp.oninput=()=>{ if(DT&&DT.waiting) inp.value=raw||""; };
+    inp.focus({preventScroll:true});
+  }
+}
+function dtOver(){
+  if(!DT||DT.over) return; DT.over=true; cancelAnimationFrame(DT.timer);
+  document.body.classList.remove("bz");
+  const st=dtStats(), rec=DT.peak>(st.top||0);
+  st.top=Math.max(st.top||0,DT.peak); st.runs=(st.runs||0)+1; if(DT.right+DT.wrong) st.lastOk=[...DT.ok]; save();
+  const worst=Object.keys(DT.miss).sort((a,b)=>DT.miss[b]-DT.miss[a]).slice(0,3);
+  const R=DT; DT=null; sfx(rec?"win":"good"); afterUnit();
+  $("#app").innerHTML=`<div class="card done"><p class="muted" style="margin:0 0 6px">Höchste Stufe in dieser Runde</p><p class="big">${R.peak}</p>
+    <p style="margin:0 0 6px">${beltHTML(R.peak,true)}</p>
+    <p class="muted" style="margin:0 0 4px">${R.right} richtig · ${R.wrong} falsch · am Ende Stufe ${R.stage}</p>
+    <p class="muted" style="margin:0 0 4px">${R.pass>1?`${R.pass-1} ${R.pass-1===1?"Durchgang":"Durchgänge"} komplett`:"Erster Durchgang"}${R.passDone.size?` · im ${R.pass}. Durchgang ${R.passDone.size} von ${R.n}`:""}</p>
+    <p style="margin:0 0 12px;${rec?"color:var(--jade);font-weight:700":""}" class="${rec?"":"muted"}">${rec?"Neuer Rekord!":`Rekord: Stufe ${st.top} (${esc(beltOf(st.top).name)})`}</p></div>
+  ${worst.length?`<h2>Haben dich zurückgeworfen</h2><p class="muted small" style="margin:-4px 0 10px">Trag dir für diese Wörter eine Eselsbrücke ein – sie wird gleich gespeichert.</p>
+    ${worst.map(id=>`<article class="card" style="margin-bottom:10px"><p style="margin:0 0 6px"><b lang="es">${esc(BY[id].es)}</b> = ${esc(BY[id].de)} <span class="muted small">· ${R.miss[id]}× falsch</span></p>${noteBoxHTML(id)}</article>`).join("")}`
+  :`<p class="muted">Kein einziger Fehler in dieser Runde – stark!</p>`}
+  <div class="row" style="justify-content:center"><button class="btn gold" id="dtagain">Nochmal</button><button class="btn ghost" id="dtback">Zurück zum Dojo</button></div>`;
+  worst.forEach(wireNote);
+  $("#dtagain").onclick=dtStart; $("#dtback").onclick=()=>{ view={name:"sorgen"}; render(); };
 }
 
 /* ---------- Sorgen: Memory (Spanisch ↔ Deutsch) ---------- */
