@@ -2775,10 +2775,15 @@ function beltOf(stage){ const i=Math.floor(stage/5); const b=BELTS[Math.min(i,6)
 function beltHTML(stage,big){ const b=beltOf(stage); return `<span class="belt ${big?"big":""}" style="--bb:${b.bg};--bf:${b.fg}"><i></i>${esc(b.name)}</span>`; }
 let DT=null;
 function dtStats(){ return state.dt||(state.dt={top:0,runs:0,lastOk:[]}); }
+/* eigene Dojo-Fehlerpunkte pro Wort: falsch +2 (max. 8), richtig −1 (min. 0) */
+const DT_MAXP=8;
+const dtP=id=>((state.dtw||{})[id]||0);
+function dtSetP(id,p){ const m=state.dtw||(state.dtw={}); p=Math.max(0,Math.min(DT_MAXP,p)); if(p) m[id]=p; else m[id]=0; return p; }
+const dtGap=p=>p>=5?4:(p>=3?6:(p>=1?10:Infinity));   /* nach wie vielen Wörtern ein richtig beantwortetes Wort wiederkommt */
 function dtStart(){
   const pool=toughIds(); if(!pool.length) return; ac();
   const last=new Set(dtStats().lastOk||[]), j={}; pool.forEach(id=>j[id]=Math.random());
-  const queue=pool.slice().sort((a,b)=>(last.has(a)?1:0)-(last.has(b)?1:0)||errOf(b)-errOf(a)||j[a]-j[b]);
+  const queue=pool.slice().sort((a,b)=>dtP(b)-dtP(a)||(last.has(a)?1:0)-(last.has(b)?1:0)||errOf(b)-errOf(a)||j[a]-j[b]);
   DT={queue,n:pool.length,pass:1,passDone:new Set(),stage:0,peak:0,right:0,wrong:0,miss:{},ok:new Set(),answered:false,left:DT_SEC*1000,timer:0,over:false,rec:dtStats().top||0};
   view={name:"dt"}; render();
 }
@@ -2843,7 +2848,10 @@ function dtAnswer(ok,raw,timeout,accent){
   const id=DT.queue.shift(), v=BY[id], P=parts(v.s), gap=$("#dtgap"), inp=$("#dtin");
   inp.readOnly=true; $("#dtok").disabled=true;
   if(ok){
-    DT.right++; DT.ok.add(id); DT.queue.push(id);                       /* richtig: ganz ans Ende */
+    DT.right++; DT.ok.add(id);
+    const p=dtSetP(id,dtP(id)-1), g=dtGap(p);                          /* richtig: je mehr Dojo-Punkte, desto früher wieder dran */
+    if(g===Infinity) DT.queue.push(id); else DT.queue.splice(Math.min(g,DT.queue.length),0,id);
+    save();
     DT.passDone.add(id); let passMsg="";
     if(DT.passDone.size>=DT.n){ passMsg=`<br><span style="color:var(--jade);font-weight:800">${DT.pass}. Durchgang geschafft – weiter mit dem ${DT.pass+1}. Durchgang!</span>`; DT.pass++; DT.passDone=new Set(); }
     const before=beltOf(DT.stage).i; DT.stage++; const newBelt=beltOf(DT.stage).i>before&&DT.stage>DT.peak;
@@ -2856,10 +2864,11 @@ function dtAnswer(ok,raw,timeout,accent){
     setTimeout(()=>{ if(DT&&!DT.over) renderDt(); },passMsg?2200:(newBelt?1500:(accent?1400:700)));
   } else {
     DT.wrong++; DT.miss[id]=(DT.miss[id]||0)+1; DT.queue.splice(Math.min(3,DT.queue.length),0,id);   /* falsch: kommt drei Wörter später wieder */
+    const p0=dtP(id), p=dtSetP(id,p0+2); save();
     DT.stage=Math.max(0,DT.stage-1); sfx("bad");
     gap.classList.add("miss"); inp.classList.add("no");
     const d=raw&&raw.trim()?diffHTML(raw.trim(),P.gap):null;
-    $("#dtfb").innerHTML=`${timeout?"Zeit abgelaufen – ":""}${d?`Deine Antwort: <span lang="es">${d.typed}</span> → `:""}richtig: <b lang="es">${d?d.correct:esc(P.gap)}</b> <span class="muted">(${esc(v.es)} = ${esc(v.de)})</span><br><span class="muted">Eine Stufe zurück. Weiter mit Enter.</span>`;
+    $("#dtfb").innerHTML=`${timeout?"Zeit abgelaufen – ":""}${d?`Deine Antwort: <span lang="es">${d.typed}</span> → `:""}richtig: <b lang="es">${d?d.correct:esc(P.gap)}</b> <span class="muted">(${esc(v.es)} = ${esc(v.de)})</span><br><span class="muted">Eine Stufe zurück · Dojo-Punkte ${p0} → ${p}. Weiter mit Enter.</span>`;
     dtHud();
     /* falsch: kein automatisches Weiter – Enter oder „Weiter“ */
     DT.waiting=true; inp.readOnly=false; inp.value=raw||""; const okb=$("#dtok"); okb.disabled=false; okb.textContent="Weiter"; okb.onclick=dtNext;
@@ -2880,7 +2889,7 @@ function dtOver(){
     <p class="muted" style="margin:0 0 4px">${R.pass>1?`${R.pass-1} ${R.pass-1===1?"Durchgang":"Durchgänge"} komplett`:"Erster Durchgang"}${R.passDone.size?` · im ${R.pass}. Durchgang ${R.passDone.size} von ${R.n}`:""}</p>
     <p style="margin:0 0 12px;${rec?"color:var(--jade);font-weight:700":""}" class="${rec?"":"muted"}">${rec?"Neuer Rekord!":`Rekord: Stufe ${st.top} (${esc(beltOf(st.top).name)})`}</p></div>
   ${worst.length?`<h2>Haben dich zurückgeworfen</h2><p class="muted small" style="margin:-4px 0 10px">Trag dir für diese Wörter eine Eselsbrücke ein – sie wird gleich gespeichert.</p>
-    ${worst.map(id=>`<article class="card" style="margin-bottom:10px"><p style="margin:0 0 6px"><b lang="es">${esc(BY[id].es)}</b> = ${esc(BY[id].de)} <span class="muted small">· ${R.miss[id]}× falsch</span></p>${noteBoxHTML(id)}</article>`).join("")}`
+    ${worst.map(id=>`<article class="card" style="margin-bottom:10px"><p style="margin:0 0 6px"><b lang="es">${esc(BY[id].es)}</b> = ${esc(BY[id].de)} <span class="muted small">· ${R.miss[id]}× falsch · noch ${dtP(id)} ${dtP(id)===1?"Dojo-Punkt":"Dojo-Punkte"}</span></p>${noteBoxHTML(id)}</article>`).join("")}`
   :`<p class="muted">Kein einziger Fehler in dieser Runde – stark!</p>`}
   <div class="row" style="justify-content:center"><button class="btn gold" id="dtagain">Nochmal</button><button class="btn ghost" id="dtback">Zurück zum Dojo</button></div>`;
   worst.forEach(wireNote);
